@@ -25,10 +25,40 @@ async function run() {
       // Connect the client to the server	(optional starting in v4.7)
       //  await client.connect();
 
+      // DATABASE COLLECTIONS:
+      const db = client.db("one-drop");
+      const usersCollection = db.collection("users");
+      const districtsCollection = db.collection("districts");
+      const upazilaCollection = db.collection("upazilas");
+
       // API END POINTS
       app.get('/', (req, res) => {
          res.send('Server is running..')
+      });
+
+
+      // API END POINT: REGISTER OR CREATE AN USER
+      app.post("/users", async (req, res) => {
+         // initial user information
+         const userData = req.body;
+        
+         // default avatar
+         const defaultAvatar = 'https://img.icons8.com/?size=100&id=84020&format=png&color=000000';
+         // add additional information in the userData
+         if (!userData.photoURL) {
+            userData.photoURL = defaultAvatar;
+         }
+         userData.status = "active";
+         userData.role = "donor";
+         userData.createdAt = new Date();
+
+         // save the user in the database
+         const result = await usersCollection.insertOne(userData);
+         res.send(result);  
       })
+
+
+
 
       // Send a ping to confirm a successful connection
       //  await client.db("admin").command({ ping: 1 });

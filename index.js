@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const port = process.env.SERVER_PORT || 5000;
-const { MongoClient, ServerApiVersion } = require('mongodb')
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 
 // CREATE EXPRESS APPLICATION INSTANCE
 const app = express();
@@ -61,6 +61,16 @@ async function run() {
       app.get("/users", async (req, res) => {
          const data = await usersCollection.find().toArray();
          res.send(data);
+      })
+
+      // API END POINT: GET A PARTICULAR USER USING USER ID
+      app.get("/users/:id", async (req, res) => {
+         const id = req.params.id;
+         const filter = {
+            _id : new ObjectId(id)
+         };
+         const result = usersCollection.findOne(filter);
+         res.send(result);
       })
 
 

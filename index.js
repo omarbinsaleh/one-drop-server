@@ -57,6 +57,12 @@ async function run() {
          res.send(result);  
       })
 
+      // API END POINT: GET USERS
+      app.get("/users", async (req, res) => {
+         const data = await usersCollection.find().toArray();
+         res.send(data);
+      })
+
 
 
 

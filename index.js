@@ -1,17 +1,18 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const port = process.env.SERVER_PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 
-// CREATE EXPRESS APPLICATION INSTANCE
+// create the express application:
 const app = express();
+const port = process.env.PORT || 5000;
 
-// MIDDLEWARES
+// middlewares:
 app.use(cors());
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.fev0e.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
    serverApi: {
@@ -20,73 +21,77 @@ const client = new MongoClient(uri, {
       deprecationErrors: true,
    }
 });
+
 async function run() {
    try {
-      // Connect the client to the server	(optional starting in v4.7)
-      //  await client.connect();
 
-      // DATABASE COLLECTIONS:
-      const db = client.db("one-drop");
-      const usersCollection = db.collection("users");
+      // Connect the client to the server	(optional starting in v4.7)
+      // await client.connect();
+
+      // create database and data collections:
+      const db = client.db('One_Drop');
+      const userCollection = db.collection("users");
       const districtsCollection = db.collection("districts");
       const upazilaCollection = db.collection("upazilas");
 
-      // API END POINTS
+      // 01. TESTING RELATED API: TEST IF THE API IS WORKING FINE OR NOT
       app.get('/', (req, res) => {
-         res.send('Server is running..')
-      });
-
-
-      // API END POINT: REGISTER OR CREATE AN USER
-      app.post("/users", async (req, res) => {
-         // initial user information
-         const userData = req.body;
-        
-         // default avatar
-         const defaultAvatar = 'https://img.icons8.com/?size=100&id=84020&format=png&color=000000';
-         // add additional information in the userData
-         if (!userData.photoURL) {
-            userData.photoURL = defaultAvatar;
-         }
-         userData.status = "active";
-         userData.role = "donor";
-         userData.createdAt = new Date();
-
-         // save the user in the database
-         const result = await usersCollection.insertOne(userData);
-         res.send(result);  
+         res.send('Serever is running....')
       })
 
-      // API END POINT: GET USERS
-      app.get("/users", async (req, res) => {
-         const data = await usersCollection.find().toArray();
-         res.send(data);
+
+      // 02. USER RELATED API: CREATE A NEW USER
+      app.post('/users', async (req, res) => {
+         const user = req.body;
+         user.role = 'donor';
+         user.status = 'active',
+         user.createdAt = new Date();
+
+         const result = await userCollection.insertOne(user);
+         res.send(result);
       })
 
-      // API END POINT: GET A PARTICULAR USER USING USER ID
-      app.get("/users/:id", async (req, res) => {
+      // 03. USER RELATED API: RETRIVE USERS
+      app.get('/users', async (req, res) => {
+         const result = await userCollection.find().toArray();
+         res.send(result);
+      })
+
+      // 05. USER RELATED API: RETRIVE A PARTICULAR USER USING ID
+      app.get('/users/:id', async (req, res) => {
          const id = req.params.id;
-         const filter = {
-            _id : new ObjectId(id)
-         };
-         const result = usersCollection.findOne(filter);
+         const filter = {_id: new ObjectId(id)};
+         const result = await userCollection.findOne(filter);
+         res.send(result);
+      })
+      
+      // 04. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
+      app.get('/districts', async (req, res) => {
+         const result = await districtsCollection.find().toArray();
+         res.send(result);
+      })
+
+      // 05. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS
+      app.get('/upazilas', async (req, res) => {
+         const result = await upazilaCollection.find().toArray();
          res.send(result);
       })
 
 
 
-
       // Send a ping to confirm a successful connection
-      //  await client.db("admin").command({ ping: 1 });
+      // await client.db("admin").command({ ping: 1 });
       console.log("Pinged your deployment. You successfully connected to MongoDB!");
    } finally {
       // Ensures that the client will close when you finish/error
-      //  await client.close();
+      // await client.close();
    }
 }
 run().catch(console.dir);
 
-// LISTEN
+
+
+// listen the sever:
 app.listen(port, () => {
-   console.log(`Server is running on: http://localhost:${port}`);
+   console.log(`One Drop Server is running on port: ${port}`);
 })

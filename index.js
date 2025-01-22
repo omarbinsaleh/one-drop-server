@@ -57,7 +57,7 @@ async function run() {
          res.send(result);
       })
 
-      // 05. USER RELATED API: RETRIVE A PARTICULAR USER USING ID
+      // 04. USER RELATED API: RETRIVE A PARTICULAR USER USING ID
       app.get('/users/:id', async (req, res) => {
          const id = req.params.id;
          const filter = {_id: new ObjectId(id)};
@@ -65,10 +65,20 @@ async function run() {
          res.send(result);
       })
       
-      // 04. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
+      // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
       app.get('/districts', async (req, res) => {
          const result = await districtsCollection.find().toArray();
          res.send(result);
+      })
+
+      // 06. DISTRICTS RELATED API: RETRIVE A SINGLE DISCTICT
+      app.get('/districts/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {name: 'districts'};
+         const result = await districtsCollection.findOne(filter);
+         const data = result.data;
+         const finalData = data.find(item => item.id === id) || {success: false, message: 'Data Not Found'};
+         res.send(finalData);
       })
 
       // 05. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS

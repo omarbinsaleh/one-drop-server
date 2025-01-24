@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 
 // APPLICATION LEVEL MIDDLEWARES:
 app.use(cors({
-   origin: ['http://localhost:5173']
+   origin: ['http://localhost:5173', 'https://one-drop.netlify.app'],
 }));
 app.use(express.json());
 
@@ -30,6 +30,7 @@ const db = client.db('One_Drop');
 const userCollection = db.collection("users");
 const districtsCollection = db.collection("districts");
 const upazilaCollection = db.collection("upazilas");
+const donationRequestCollection = db.collection("donation_requests");
 
 // CUSTOM MIDDLEWARE DEFINATION: VALIDATE EXISTING USER USING EMAIL
 const validateExistingUsre = async (req, res, next) => {
@@ -121,6 +122,14 @@ async function run() {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
          const result = await userCollection.findOne(filter);
+         res.send(result);
+      })
+
+      // DONATION REQUEST RELATED API: CREATE A DONATION REQUEST
+      app.post('/donation-requests', async (req, res) => {
+         const donationRequest = req.body;
+         donationRequest.createdAt = new Date();
+         const result = await donationRequestCollection.insertOne(donationRequest);
          res.send(result);
       })
 

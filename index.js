@@ -8,7 +8,9 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // APPLICATION LEVEL MIDDLEWARES:
-app.use(cors());
+app.use(cors({
+   origin: ['http://localhost:5173']
+}));
 app.use(express.json());
 
 // MONGODB URI
@@ -36,6 +38,7 @@ const validateExistingUsre = async (req, res, next) => {
    const isExistingUser = await userCollection.findOne(filter);
    if (isExistingUser) {
       req.body.isExistingUser = true;
+      req.body.user = isExistingUser;
    } else {
       req.body.isExistingUser = false;
    }
@@ -75,9 +78,41 @@ async function run() {
          res.send(result);
       })
 
+      // USER RELATED API: UPDATE AN EXISTING USER
+      app.patch('/users', validateExistingUsre, async (req, res) => {
+         // when the user is an existing user
+         if (req.body.isExistingUser) {
+            const userInfo = req.body.updatedInfo;
+            const filter = { email: req.body.user.email };
+            const options = { upsert: true };
+
+            const updatedDoc = {
+               $set: {
+                  name: userInfo.name,
+                  email: userInfo.email,
+                  district: userInfo.district,
+                  upazila: userInfo.upazila,
+                  blood: userInfo.blood,
+                  lastModifiedAt: new Date()
+               }
+            }
+
+            const result = await userCollection.updateOne(filter, updatedDoc, options);
+            res.send(result);
+         } else {
+            res.send({ success: false, message: 'Something went wrong' })
+         }
+      })
+
       // 03. USER RELATED API: RETRIVE USERS
       app.get('/users', async (req, res) => {
-         const result = await userCollection.find().toArray();
+         const filter = {};
+
+         if (req.query.email) {
+            filter.email = req.query.email;
+         }
+
+         const result = await userCollection.find(filter).toArray();
          res.send(result);
       })
 

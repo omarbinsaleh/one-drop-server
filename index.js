@@ -3,14 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 
-// create the express application:
+// CREATE THE EXPRESS APPLICATION AND SPECIFY THE PORT NUMBER:
 const app = express();
 const port = process.env.PORT || 5000;
 
-// middlewares:
+// APPLICATION LEVEL MIDDLEWARES:
 app.use(cors());
 app.use(express.json());
 
+// MONGODB URI
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.fev0e.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -22,32 +23,55 @@ const client = new MongoClient(uri, {
    }
 });
 
+// CREATE DATABASE AND DATA COLLECTIONS:
+const db = client.db('One_Drop');
+const userCollection = db.collection("users");
+const districtsCollection = db.collection("districts");
+const upazilaCollection = db.collection("upazilas");
+
+// CUSTOM MIDDLEWARE DEFINATION: VALIDATE EXISTING USER USING EMAIL
+const validateExistingUsre = async (req, res, next) => {
+   const { email } = req.body;
+   const filter = { email: email }
+   const isExistingUser = await userCollection.findOne(filter);
+   if (isExistingUser) {
+      req.body.isExistingUser = true;
+   } else {
+      req.body.isExistingUser = false;
+   }
+
+   next();
+}
+
 async function run() {
    try {
-
       // Connect the client to the server	(optional starting in v4.7)
       // await client.connect();
-
-      // create database and data collections:
-      const db = client.db('One_Drop');
-      const userCollection = db.collection("users");
-      const districtsCollection = db.collection("districts");
-      const upazilaCollection = db.collection("upazilas");
 
       // 01. TESTING RELATED API: TEST IF THE API IS WORKING FINE OR NOT
       app.get('/', (req, res) => {
          res.send('Serever is running....')
       })
 
-
       // 02. USER RELATED API: CREATE A NEW USER
-      app.post('/users', async (req, res) => {
+      app.post('/users', validateExistingUsre, async (req, res) => {
+         // when the user is an existing user, return early with response to client
+         if (req.body.isExistingUser) {
+            return res.send({ isExistingUser: true, insertedId: null, message: 'user already exists' });
+         }
+
+         // user information to be saved
          const user = req.body;
          user.role = 'donor';
-         user.status = 'active',
+         user.status = 'active';
          user.createdAt = new Date();
 
+         // save user information in the users collection
          const result = await userCollection.insertOne(user);
+
+         // send response to the client
+         result.message = 'user created successfully';
+         result.isExistingUser = false;
          res.send(result);
       })
 
@@ -60,11 +84,11 @@ async function run() {
       // 04. USER RELATED API: RETRIVE A PARTICULAR USER USING ID
       app.get('/users/:id', async (req, res) => {
          const id = req.params.id;
-         const filter = {_id: new ObjectId(id)};
+         const filter = { _id: new ObjectId(id) };
          const result = await userCollection.findOne(filter);
          res.send(result);
       })
-      
+
       // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
       app.get('/districts', async (req, res) => {
          const result = await districtsCollection.find().toArray();
@@ -74,17 +98,27 @@ async function run() {
       // 06. DISTRICTS RELATED API: RETRIVE A SINGLE DISCTICT
       app.get('/districts/:id', async (req, res) => {
          const id = req.params.id;
-         const filter = {name: 'districts'};
+         const filter = { name: 'districts' };
          const result = await districtsCollection.findOne(filter);
          const data = result.data;
-         const finalData = data.find(item => item.id === id) || {success: false, message: 'Data Not Found'};
+         const finalData = data.find(item => item.id === id) || { success: false, message: 'Data Not Found' };
          res.send(finalData);
       })
 
-      // 05. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS
+      // 07. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS
       app.get('/upazilas', async (req, res) => {
          const result = await upazilaCollection.find().toArray();
          res.send(result);
+      })
+
+      // UPAZILAS RELATED API: RETRIVE A SINGLE UPAZILA DATA
+      app.get('/upazilas/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = { name: 'upazilas' };
+         const result = await upazilaCollection.findOne(filter);
+         const data = result.data;
+         const finalData = data.find(item => item.id === id) || { success: false, message: "Data Not Found" };
+         res.send(finalData);
       })
 
 

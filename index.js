@@ -57,7 +57,7 @@ async function run() {
          res.send('Serever is running....')
       })
 
-      // 02. USER RELATED API: CREATE A NEW USER
+      // 02. USER RELATED API => CREATE A NEW USER
       app.post('/users', validateExistingUsre, async (req, res) => {
          // when the user is an existing user, return early with response to client
          if (req.body.isExistingUser) {
@@ -77,9 +77,9 @@ async function run() {
          result.message = 'user created successfully';
          result.isExistingUser = false;
          res.send(result);
-      })
+      });
 
-      // USER RELATED API: UPDATE AN EXISTING USER
+      // USER RELATED API => UPDATE AN EXISTING USER
       app.patch('/users', validateExistingUsre, async (req, res) => {
          // when the user is an existing user
          if (req.body.isExistingUser) {
@@ -105,7 +105,7 @@ async function run() {
          }
       })
 
-      // 03. USER RELATED API: RETRIVE USERS
+      // 03. USER RELATED API => RETRIVE USERS
       app.get('/users', async (req, res) => {
          const filter = {};
 
@@ -117,7 +117,7 @@ async function run() {
          res.send(result);
       })
 
-      // 04. USER RELATED API: RETRIVE A PARTICULAR USER USING ID
+      // 04. USER RELATED API => RETRIVE A PARTICULAR USER USING ID
       app.get('/users/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
@@ -125,11 +125,24 @@ async function run() {
          res.send(result);
       })
 
-      // DONATION REQUEST RELATED API: CREATE A DONATION REQUEST
+      // DONATION REQUEST RELATED API => CREATE A DONATION REQUEST
       app.post('/donation-requests', async (req, res) => {
-         const donationRequest = req.body;
+         const donationRequest = req.body.donationRequest;
          donationRequest.createdAt = new Date();
          const result = await donationRequestCollection.insertOne(donationRequest);
+         res.send(result);
+      });
+
+      // DONATION REQUEST RELATED API => RETRIVE DONATION REQUESTS
+      app.get('/donation-requests', async (req, res) => {
+         const filter = {};
+
+         // filter based on user's email, if the email is passed through the query parameter
+         if (req.query.email) {
+            filter.requesterEmail = email;
+         };
+
+         const result = await donationRequestCollection.find(filter).toArray();
          res.send(result);
       })
 
@@ -137,7 +150,7 @@ async function run() {
       app.get('/districts', async (req, res) => {
          const result = await districtsCollection.find().toArray();
          res.send(result);
-      })
+      });
 
       // 06. DISTRICTS RELATED API: RETRIVE A SINGLE DISCTICT
       app.get('/districts/:id', async (req, res) => {
@@ -147,13 +160,13 @@ async function run() {
          const data = result.data;
          const finalData = data.find(item => item.id === id) || { success: false, message: 'Data Not Found' };
          res.send(finalData);
-      })
+      });
 
       // 07. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS
       app.get('/upazilas', async (req, res) => {
          const result = await upazilaCollection.find().toArray();
          res.send(result);
-      })
+      });
 
       // UPAZILAS RELATED API: RETRIVE A SINGLE UPAZILA DATA
       app.get('/upazilas/:id', async (req, res) => {
@@ -163,7 +176,7 @@ async function run() {
          const data = result.data;
          const finalData = data.find(item => item.id === id) || { success: false, message: "Data Not Found" };
          res.send(finalData);
-      })
+      });
 
 
 

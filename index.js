@@ -139,10 +139,39 @@ async function run() {
 
          // filter based on user's email, if the email is passed through the query parameter
          if (req.query.email) {
-            filter.requesterEmail = email;
+            filter.requesterEmail = req.query.email;
          };
 
+         if(req.query.filter) {
+            filter.status = req.query.filter;
+         }
+
          const result = await donationRequestCollection.find(filter).toArray();
+         res.send(result);
+      })
+
+      // DONATION REQUEST RELATED API: UPDATE A SINGLE DONATION REQUEST
+      app.patch('/donation-requests/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {_id: new ObjectId(id)};
+         const updatedDoc = {
+            $set: {
+               ...req.body.donationRequest,
+               lastModifiedAt: new Date()
+            }
+         }
+         const options = { upsert: true }
+
+         const result = await donationRequestCollection.updateOne(filter, updatedDoc, options);
+         res.send(result);
+      })
+
+      // DONATION REQUEST RELATED API: DELETE A DONATION REQUEST
+      app.delete('/donation-requests/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {_id: new ObjectId(id)};
+         const result = await donationRequestCollection.deleteOne(filter);
+         result.filter = filter;
          res.send(result);
       })
 

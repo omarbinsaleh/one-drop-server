@@ -133,20 +133,49 @@ async function run() {
          res.send(result);
       });
 
+      // DONATION REQUEST RELATED API => RETRIVE A SINGLE DONATION REQUEST DATA
+      app.get('/donation-requests/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {_id: new ObjectId(id)};
+         const result = await donationRequestCollection.findOne(filter);
+         res.send(result);
+      })
+
       // DONATION REQUEST RELATED API => RETRIVE DONATION REQUESTS
       app.get('/donation-requests', async (req, res) => {
          const filter = {};
+         let count = 0;
+         const sortingOption = {createdAt: -1}
 
          // filter based on user's email, if the email is passed through the query parameter
          if (req.query.email) {
             filter.requesterEmail = req.query.email;
          };
 
+         // filter based on the donation status
          if(req.query.filter) {
             filter.status = req.query.filter;
          }
 
-         const result = await donationRequestCollection.find(filter).toArray();
+         // specify the number of documents
+         if (req.query.count) {
+            const countNumber = parseInt(req.query.count);
+            count = countNumber;
+            sortingOption.createdAt = -1;
+         }
+
+         // sorting
+         if (req.query.sort) {
+            if (req.query.sort === 'ace') {
+               sortingOption.createdAt = 1
+            }
+
+            if (req.query.sort === 'dce') {
+               sortingOption.createdAt = -1
+            }
+         }
+
+         const result = await donationRequestCollection.find(filter).sort(sortingOption).limit(count).toArray();
          res.send(result);
       })
 

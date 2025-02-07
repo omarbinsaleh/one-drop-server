@@ -109,8 +109,14 @@ async function run() {
       app.get('/users', async (req, res) => {
          const filter = {};
 
+         // filter using email
          if (req.query.email) {
             filter.email = req.query.email;
+         }
+
+         // filter using user's status
+         if (req.query.status) {
+            filter.status = req.query.status;
          }
 
          const result = await userCollection.find(filter).toArray();
@@ -155,6 +161,14 @@ async function run() {
          // filter based on the donation status
          if(req.query.filter) {
             filter.status = req.query.filter;
+         }
+
+         // search data using the recipient's name
+         if(req.query.search) {
+            filter.recipientName = {
+               $regex: req.query.search,
+               $options : "i"
+            };
          }
 
          // specify the number of documents

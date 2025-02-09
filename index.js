@@ -47,6 +47,28 @@ const validateExistingUsre = async (req, res, next) => {
    next();
 }
 
+// CUSTOM MIDDLEWARE: VALIDATE IF THE USER IS ADMIN
+const isAdmin = async (req, res, next) => {
+   const filter = {};
+   const userEmail = req.body.userEmail;
+   if (userEmail) {
+      filter.email = userEmail;
+   }
+
+   const user = await userCollection.findOne(filter);
+   if (user.email !== userEmail) {
+      return res.status(403).send({
+         success: false,
+         message: 'Unauthorized Access',
+         statusCode: 403
+      })
+   } else {
+      // call the next function
+      next();
+   }
+
+}
+
 async function run() {
    try {
       // Connect the client to the server	(optional starting in v4.7)
@@ -105,6 +127,30 @@ async function run() {
          }
       })
 
+      // USER RELATED API => UPDATE A SINGLE USER
+      app.patch('/users/update/:id', isAdmin, async (req, res) => {
+         const id = req.params.id;
+         const filter = {};
+
+         // if there is id
+         if (id) {
+            filter._id = new ObjectId(id);
+         }
+
+         const updatedDoc = {
+            $set: {
+               ...req.body.updatedInfo,
+               lastModifiedAt: new Date()
+            }
+         }
+
+         const options = { upsert: true };
+
+         const result = await userCollection.updateOne(filter, updatedDoc, options);
+         res.send(result);
+
+      })
+
       // 03. USER RELATED API => RETRIVE USERS
       app.get('/users', async (req, res) => {
          const filter = {};
@@ -142,7 +188,7 @@ async function run() {
       // DONATION REQUEST RELATED API => RETRIVE A SINGLE DONATION REQUEST DATA
       app.get('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
-         const filter = {_id: new ObjectId(id)};
+         const filter = { _id: new ObjectId(id) };
          const result = await donationRequestCollection.findOne(filter);
          res.send(result);
       })
@@ -151,7 +197,7 @@ async function run() {
       app.get('/donation-requests', async (req, res) => {
          const filter = {};
          let count = 0;
-         const sortingOption = {createdAt: -1}
+         const sortingOption = { createdAt: -1 }
 
          // filter based on user's email, if the email is passed through the query parameter
          if (req.query.email) {
@@ -159,15 +205,15 @@ async function run() {
          };
 
          // filter based on the donation status
-         if(req.query.filter) {
+         if (req.query.filter) {
             filter.status = req.query.filter;
          }
 
          // search data using the recipient's name
-         if(req.query.search) {
+         if (req.query.search) {
             filter.recipientName = {
                $regex: req.query.search,
-               $options : "i"
+               $options: "i"
             };
          }
 
@@ -196,7 +242,7 @@ async function run() {
       // DONATION REQUEST RELATED API: UPDATE A SINGLE DONATION REQUEST
       app.patch('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
-         const filter = {_id: new ObjectId(id)};
+         const filter = { _id: new ObjectId(id) };
          const updatedDoc = {
             $set: {
                ...req.body.donationRequest,
@@ -212,7 +258,7 @@ async function run() {
       // DONATION REQUEST RELATED API: DELETE A DONATION REQUEST
       app.delete('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
-         const filter = {_id: new ObjectId(id)};
+         const filter = { _id: new ObjectId(id) };
          const result = await donationRequestCollection.deleteOne(filter);
          result.filter = filter;
          res.send(result);

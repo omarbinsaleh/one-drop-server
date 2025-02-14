@@ -283,6 +283,14 @@ async function run() {
          res.send(result);
       })
 
+      // BLOGS RELATED API: CREATE AND SAVE A BLOG
+      app.post('/blogs', async (req, res) => {
+         const newBlog = req.body.blog;
+         newBlog.createdAt = new Date();
+         const result = await blogsCollection.insertOne(newBlog);
+         res.send(result);
+      })
+
       // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
       app.get('/districts', async (req, res) => {
          const result = await districtsCollection.find().toArray();

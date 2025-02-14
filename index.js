@@ -335,6 +335,7 @@ async function run() {
          }
 
          const result = await blogsCollection.deleteOne(filter);
+         res.send(result);
       });
 
       // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;

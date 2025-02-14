@@ -279,6 +279,12 @@ async function run() {
       // BLOGS RELATED API: RETRIVE ALL BLOGS
       app.get('/blogs', async (req, res) => {
          const filter = {};
+
+         // filter using the status
+         if (req.query.status) {
+            filter.status = req.query.status;
+         }
+
          const result = await blogsCollection.find(filter).toArray();
          res.send(result);
       })
@@ -288,6 +294,25 @@ async function run() {
          const newBlog = req.body.blog;
          newBlog.createdAt = new Date();
          const result = await blogsCollection.insertOne(newBlog);
+         res.send(result);
+      });
+
+      // BLOGS RELATED API: UPDATE A SINGLE BLOG
+      app.path('blogs/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {
+            _id: new ObjectId(id)
+         };
+
+         const options = {upsert: true};
+         const updatedDoc = {
+            $set: {
+               ...req.body.blog,
+               lastModifiedAt: new Date()
+            }
+         };
+
+         const result = await blogsCollection.updateOne(filter, updatedDoc, options);
          res.send(result);
       })
 

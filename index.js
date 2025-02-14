@@ -316,6 +316,16 @@ async function run() {
          res.send(result);
       })
 
+      // BLOGS RELATED API: DELETE A SINGLE BLOG USING THE BLOG ID
+      app.delete('/blogs/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {
+            _id: new ObjectId(id)
+         }
+
+         const result = await blogsCollection.deleteOne(filter);
+      });
+
       // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
       app.get('/districts', async (req, res) => {
          const result = await districtsCollection.find().toArray();

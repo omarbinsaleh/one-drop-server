@@ -287,6 +287,17 @@ async function run() {
 
          const result = await blogsCollection.find(filter).toArray();
          res.send(result);
+      });
+
+      // BLOGS RELATED API: RETRIVE A SINGLE BLOG USING BLOG ID
+      app.get('/blogs/:id', async (req, res) => {
+         const id = req.params.id;
+         const filter = {
+            _id: new ObjectId(id)
+         }
+
+         const result = await blogsCollection.findOne(filter);
+         res.send(result);
       })
 
       // BLOGS RELATED API: CREATE AND SAVE A BLOG

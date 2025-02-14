@@ -31,8 +31,9 @@ const userCollection = db.collection("users");
 const districtsCollection = db.collection("districts");
 const upazilaCollection = db.collection("upazilas");
 const donationRequestCollection = db.collection("donation_requests");
+const blogsCollection = db.collection('blogs');
 
-// CUSTOM MIDDLEWARE DEFINATION: VALIDATE EXISTING USER USING EMAIL
+// CUSTOM MIDDLEWARE: VALIDATE EXISTING USER USING EMAIL
 const validateExistingUsre = async (req, res, next) => {
    // 01. get the user email from the request body
    const { email } = req.body;
@@ -272,6 +273,13 @@ async function run() {
          const filter = { _id: new ObjectId(id) };
          const result = await donationRequestCollection.deleteOne(filter);
          result.filter = filter;
+         res.send(result);
+      });
+
+      // BLOGS RELATED API: RETRIVE ALL BLOGS
+      app.get('/blogs', async (req, res) => {
+         const filter = {};
+         const result = await blogsCollection.find(filter).toArray();
          res.send(result);
       })
 

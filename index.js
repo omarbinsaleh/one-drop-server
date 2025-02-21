@@ -221,6 +221,11 @@ async function run() {
             filter.status = req.query.filter;
          }
 
+         // filter based on the blood group
+         if (req.query.bloodGroup) {
+            filter.bloodGroup = req.query.bloodGroup === '' ? '' : decodeURIComponent(req.query.bloodGroup);
+         }
+
          // search data using the recipient's name
          if (req.query.search) {
             filter.recipientName = {
@@ -373,8 +378,8 @@ async function run() {
 
 
       // Send a ping to confirm a successful connection
-      // await client.db("admin").command({ ping: 1 });
-      console.log("Pinged your deployment. You successfully connected to MongoDB!");
+      await client.db("admin").command({ ping: 1 });
+      // console.log("Pinged your deployment. You successfully connected to MongoDB!");
    } finally {
       // Ensures that the client will close when you finish/error
       // await client.close();

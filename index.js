@@ -1,7 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const validateExistingUsre = require('./middlewares/validateExistingUser');
+const isAdmin = require('./middlewares/isAdmin');
 
 // CREATE THE EXPRESS APPLICATION AND SPECIFY THE PORT NUMBER:
 const app = express();
@@ -32,54 +34,8 @@ const districtsCollection = db.collection("districts");
 const upazilaCollection = db.collection("upazilas");
 const donationRequestCollection = db.collection("donation_requests");
 const blogsCollection = db.collection('blogs');
+const donorsCollection = db.collection('donors');
 
-// CUSTOM MIDDLEWARE: VALIDATE EXISTING USER USING EMAIL
-const validateExistingUsre = async (req, res, next) => {
-   // 01. get the user email from the request body
-   const { email } = req.body;
-
-   // 02. create a filter using the user email
-   const filter = { email: email }
-
-   // 03. find the specific user using the filter created above
-   const isExistingUser = await userCollection.findOne(filter);
-
-   // 04. modify the request body
-   if (isExistingUser) {
-      // add a property named 'isExistingUser' in the request body
-      req.body.isExistingUser = true;
-      
-      // add another property 'user' in the request body which will hold the user information
-      req.body.user = isExistingUser;
-   } else {
-      req.body.isExistingUser = false;
-   }
-
-   // 05. go to the next step
-   next();
-}
-
-// CUSTOM MIDDLEWARE: VALIDATE IF THE USER IS ADMIN
-const isAdmin = async (req, res, next) => {
-   const filter = {};
-   const userEmail = req.body.userEmail;
-   if (userEmail) {
-      filter.email = userEmail;
-   }
-
-   const user = await userCollection.findOne(filter);
-   if (user.email !== userEmail) {
-      return res.status(403).send({
-         success: false,
-         message: 'Unauthorized Access',
-         statusCode: 403
-      })
-   } else {
-      // call the next function
-      next();
-   }
-
-}
 
 async function run() {
    try {
@@ -260,6 +216,7 @@ async function run() {
       app.patch('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
+
          const updatedDoc = {
             $set: {
                ...req.body.donationRequest,
@@ -269,6 +226,15 @@ async function run() {
          const options = { upsert: true }
 
          const result = await donationRequestCollection.updateOne(filter, updatedDoc, options);
+
+         // save the donor iformation in the database
+         const donorInfo = req.body.donationRequest.donorInfo;
+         const donorExists = await donorsCollection.findOne({email: donorInfo.email});
+         if (!donorExists) {
+            const saveDonor = await donorsCollection.insertOne(donorInfo);
+         }
+
+         // send the result
          res.send(result);
       })
 

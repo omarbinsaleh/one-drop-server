@@ -2,12 +2,78 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const validateExistingUsre = require('./middlewares/validateExistingUser');
-const isAdmin = require('./middlewares/isAdmin');
 
 // CREATE THE EXPRESS APPLICATION AND SPECIFY THE PORT NUMBER:
 const app = express();
 const port = process.env.PORT || 5000;
+
+// CUSTOM MIDDLEWARES: validateExistingUser
+const validateExistingUsre = async (req, res, next) => {
+   // 01. get the user email from the request body
+   const { email } = req.body;
+
+   // 02. create a filter using the user email
+   const filter = { email: email }
+
+   // 03. find the specific user using the filter created above
+   const isExistingUser = await userCollection.findOne(filter);
+
+   // 04. modify the request body
+   if (isExistingUser) {
+      // add a property named 'isExistingUser' in the request body
+      req.body.isExistingUser = true;
+      
+      // add another property 'user' in the request body which will hold the user information
+      req.body.user = isExistingUser;
+   } else {
+      req.body.isExistingUser = false;
+   }
+
+   // 05. go to the next step
+   next();
+};
+
+// CUSTOM MIDDLEWARE: isAdmin
+const isAdmin = async (req, res, next) => {
+   const filter = {};
+
+   // get the user email from the request body
+   const userEmail = req.body.userEmail;
+   
+   // when the user email is not provided
+   if (!userEmail) {
+      return res.status(401).send({
+         success: false,
+         message: "User's email is missing. Please provide the user's email",
+         statusCode: 401
+      });
+   };
+
+   // update the filter with user email and find the user;
+   filter.email = userEmail;
+   const user = await userCollection.findOne(filter);
+
+   // when the user does not exist
+   if (!user) {
+      return res.status(401).send({
+         success: false,
+         message: "Unauthorized access",
+      });
+   };
+
+   // when the role of the user is not admin
+   if (user.role !== 'admin') {
+      return res.status(401).send({
+         success: false,
+         message: 'Unauthorized Access',
+         statusCode: 401
+      })
+   }
+
+   // finally call the next function
+   next();
+
+};
 
 // APPLICATION LEVEL MIDDLEWARES:
 app.use(cors({
@@ -117,7 +183,7 @@ async function run() {
          const result = await userCollection.updateOne(filter, updatedDoc, options);
          res.send(result);
 
-      })
+      });
 
       // 03. USER RELATED API => RETRIVE USERS
       app.get('/users', async (req, res) => {

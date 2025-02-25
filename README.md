@@ -2,6 +2,9 @@
 
 This is the backend server for the One Drop application, a blood donation platform that connects donors with recipients. The server is built using Node.js, Express, and MongoDB.
 
+## API
+[API Base URL](#) (https://one-drop-server.vercel.app/)
+
 ## Features
 - User authentication and management
 - Role-based access control (Admin, Donor, etc.)

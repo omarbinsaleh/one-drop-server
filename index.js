@@ -22,7 +22,7 @@ const validateExistingUsre = async (req, res, next) => {
    if (isExistingUser) {
       // add a property named 'isExistingUser' in the request body
       req.body.isExistingUser = true;
-      
+
       // add another property 'user' in the request body which will hold the user information
       req.body.user = isExistingUser;
    } else {
@@ -39,7 +39,7 @@ const isAdmin = async (req, res, next) => {
 
    // get the user email from the request body
    const userEmail = req.body.userEmail;
-   
+
    // when the user email is not provided
    if (!userEmail) {
       return res.status(401).send({
@@ -102,6 +102,35 @@ const donationRequestCollection = db.collection("donation_requests");
 const blogsCollection = db.collection('blogs');
 const donorsCollection = db.collection('donors');
 
+// FUNCTION TO CALCULATE GROWTH PERCENTAGE
+const calculateGrowthPercentage = async (collection, dateField) => {
+   // current period value: for monthly report
+   const currentDate = new Date();
+    const lastMonthDate = new Date();
+    lastMonthDate.setMonth(currentDate.getMonth() - 1); 
+   const currentPeriodValue = await collection.countDocuments({
+      [dateField]: {
+         $gte: lastMonthDate, $lte: currentDate
+      }
+   });
+
+   // previous period value: for monthly report
+   const previousMonthDate = new Date();
+    previousMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+   const previousPeriodValue = await collection.countDocuments({
+      [dateField]: {
+         $gte: previousMonthDate, $lt: lastMonthDate
+      }
+   });
+
+   // calculate growth percentage
+   let growthPercentage = 0;
+   if (previousPeriodValue > 0) {
+      growthPercentage = ((currentPeriodValue - previousPeriodValue) / previousPeriodValue) * 100;
+   };
+
+   return growthPercentage;
+};
 
 async function run() {
    try {
@@ -295,9 +324,11 @@ async function run() {
 
          // save the donor iformation in the database
          const donorInfo = req.body.donationRequest.donorInfo;
-         const donorExists = await donorsCollection.findOne({email: donorInfo.email});
-         if (!donorExists) {
-            const saveDonor = await donorsCollection.insertOne(donorInfo);
+         if (donorInfo) {
+            const donorExists = await donorsCollection.findOne({ email: donorInfo.email });
+            if (!donorExists) {
+               const saveDonor = await donorsCollection.insertOne(donorInfo);
+            }
          }
 
          // send the result
@@ -352,7 +383,7 @@ async function run() {
             _id: new ObjectId(id)
          };
 
-         const options = {upsert: true};
+         const options = { upsert: true };
          const updatedDoc = {
             $set: {
                ...req.body.blog,
@@ -374,6 +405,33 @@ async function run() {
          const result = await blogsCollection.deleteOne(filter);
          res.send(result);
       });
+
+      // ADMIN STATISTICS RELATED API:
+      app.get('/admin/statistics', async (req, res) => {
+         // user related data;
+         const userCount = await userCollection.estimatedDocumentCount();
+         const userGrowth = await calculateGrowthPercentage(userCollection, 'createdAt')
+         const users = {
+            count: userCount,
+            growth: userGrowth.toFixed(1) + '%'
+         }
+
+         // blood donation requests related data
+         const bloodDonationRequestsCount = await donationRequestCollection.estimatedDocumentCount();
+         const donationGrowth = await calculateGrowthPercentage(donationRequestCollection, 'createdAt')
+         const bloodDonationRequests = {
+            count: bloodDonationRequestsCount,
+            growth: donationGrowth.toFixed(1)
+         }
+
+         // funds related data;
+         const funds = {
+            totalCollection: 0
+         }
+
+         const result = { users, bloodDonationRequests, funds };
+         res.send(result);
+      })
 
       // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
       app.get('/districts', async (req, res) => {

@@ -77,6 +77,22 @@ const isAdmin = async (req, res, next) => {
 
 };
 
+// CUSTOM MIDDLEWARES: verifyUser
+const verifyToken = async (req, res, next) => {
+   const { verification_token } = req.cookies;
+
+   try {
+      const decoded = jwt.verify(verification_token, process.env.JWT_SECRET);
+      if (!decoded) return res.json({ success: false, message: 'Porbiden Access' });
+
+      req.decoded = decoded;
+   } catch (error) {
+      return res.json({ success: false, message: 'Unauthorized access!!', error })
+   }
+
+   next();
+};
+
 // APPLICATION LEVEL MIDDLEWARES:
 app.use(cors({
    origin: ['http://localhost:5173', 'https://one-drop.netlify.app'],
@@ -110,8 +126,8 @@ const donorsCollection = db.collection('donors');
 const calculateGrowthPercentage = async (collection, dateField) => {
    // current period value: for monthly report
    const currentDate = new Date();
-    const lastMonthDate = new Date();
-    lastMonthDate.setMonth(currentDate.getMonth() - 1); 
+   const lastMonthDate = new Date();
+   lastMonthDate.setMonth(currentDate.getMonth() - 1);
    const currentPeriodValue = await collection.countDocuments({
       [dateField]: {
          $gte: lastMonthDate, $lte: currentDate
@@ -120,7 +136,7 @@ const calculateGrowthPercentage = async (collection, dateField) => {
 
    // previous period value: for monthly report
    const previousMonthDate = new Date();
-    previousMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+   previousMonthDate.setMonth(lastMonthDate.getMonth() - 1);
    const previousPeriodValue = await collection.countDocuments({
       [dateField]: {
          $gte: previousMonthDate, $lt: lastMonthDate
@@ -143,19 +159,68 @@ async function run() {
 
       // JWT RELATED API: CREATE JWT TOKEN
       app.post('/jwt/generate-verification-token', async (req, res) => {
-         const {userName, email} = req.body;
-         const user = {userName, email};
+         const { userName, email } = req.body;
+         const user = { userName, email };
 
-         // create jwt token
-         const token = jwt.sign(user, process.env.JWT_SECRET, {expiresIn: '1hr'});
+         try {
+            // create jwt token
+            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1hr' });
 
-         res.cookie('verfication_token', token, {
-            httpOnly: true,
-            secure: true,
-         })
+            res.cookie('verification_token', token, {
+               httpOnly: true,
+               secure: true,
+            })
 
-         return res.json({success: true,'varification_token': token}); 
+            return res.json({ 
+               success: true, 
+               varification_token: token, 
+               user, 
+               message: 'verification token has been created successfully' 
+            });
+         } catch (error) {
+            return res.json({success: false, message: 'Something went wrong', error});
+         }
       });
+
+      // GET USER PROFILE
+      app.get('/get-myProfile', verifyToken, async (req, res) => {
+         const { email, userName } = req.decoded;
+         const { userEmail } = req.body;
+
+         // check if the user email is provided
+         if (!userEmail) return res.json({ success: false, message: "Please provide the user email" });
+
+         // check if the user's email matches with the token credentials email
+         if (userEmail !== email) return res.json({ success: false, message: 'Unauthorized access!!' });
+
+         return res.json({
+            success: true,
+            message: 'Your profile is retured successfully!',
+            user: {
+               name: userName,
+               email: userEmail
+            }
+         });
+      });
+
+      // JWT RELATED API: VERIFY THE TOKEN
+      app.post('/jwt/verify-token', async (req, res) => {
+         const { verification_token } = req.cookies;
+
+         // if there is no token
+         if (!verification_token) return res.status(401).send({ success: false, message: 'Unauthorized access!!' });
+
+         try {
+            const decodedData = jwt.verify(verification_token, process.env.JWT_SECRET)
+            req.decoded = decodedData;
+
+            if (!decodedData) return res.json({ success: false, message: 'Something went wrong!!' })
+         } catch (error) {
+            return res.status(401).send({ success: false, message: 'Unauthorized access!!' });
+         }
+
+         return res.json({ verification_token, decodedObj });
+      })
 
       // 01. TESTING RELATED API: TEST IF THE API IS WORKING FINE OR NOT
       app.get('/', (req, res) => {

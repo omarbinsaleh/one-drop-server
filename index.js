@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 
 // CREATE THE EXPRESS APPLICATION AND SPECIFY THE PORT NUMBER:
 const app = express();
@@ -78,8 +80,10 @@ const isAdmin = async (req, res, next) => {
 // APPLICATION LEVEL MIDDLEWARES:
 app.use(cors({
    origin: ['http://localhost:5173', 'https://one-drop.netlify.app'],
+   credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 // MONGODB URI
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.fev0e.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -136,6 +140,22 @@ async function run() {
    try {
       // Connect the client to the server	(optional starting in v4.7)
       // await client.connect();
+
+      // JWT RELATED API: CREATE JWT TOKEN
+      app.post('/jwt/generate-verification-token', async (req, res) => {
+         const {userName, email} = req.body;
+         const user = {userName, email};
+
+         // create jwt token
+         const token = jwt.sign(user, process.env.JWT_SECRET, {expiresIn: '1hr'});
+
+         res.cookie('verfication_token', token, {
+            httpOnly: true,
+            secure: true,
+         })
+
+         return res.json({success: true,'varification_token': token}); 
+      });
 
       // 01. TESTING RELATED API: TEST IF THE API IS WORKING FINE OR NOT
       app.get('/', (req, res) => {

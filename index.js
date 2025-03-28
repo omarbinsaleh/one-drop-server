@@ -157,19 +157,19 @@ async function run() {
       // Connect the client to the server	(optional starting in v4.7)
       // await client.connect();
 
-      // JWT RELATED API: CREATE JWT TOKEN
+      // 01. JWT RELATED API: CREATE JWT TOKEN
       app.post('/jwt/generate-verification-token', async (req, res) => {
-         const { userName, email } = req.body;
-         const user = { userName, email };
+         const { displayName, email } = req.body;
+         const user = { displayName, email };
 
          try {
             // create jwt token
-            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1hr' });
+            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '5h' });
 
             res.cookie('verification_token', token, {
                httpOnly: true,
-               secure: true,
-            })
+               secure: process.env.NODE_ENV === 'production',
+            });
 
             return res.json({ 
                success: true, 
@@ -178,8 +178,21 @@ async function run() {
                message: 'verification token has been created successfully' 
             });
          } catch (error) {
-            return res.json({success: false, message: 'Something went wrong', error});
+            return res.json({success: false, message: 'Something went wrong and could not generate the token', error});
          }
+      });
+
+      // 02. JWT RELATED API: CLEAR THE VERIFICATION TOKEN
+      app.post('/jwt/clear-verification-token', (req, res) => {
+         res.clearCookie('verification_token', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+         });
+
+         res.json({
+            success: true,
+            message: 'Logout successfully'
+         });
       });
 
       // GET USER PROFILE
@@ -222,12 +235,12 @@ async function run() {
          return res.json({ verification_token, decodedObj });
       })
 
-      // 01. TESTING RELATED API: TEST IF THE API IS WORKING FINE OR NOT
+      // 03. TESTING RELATED API: TEST IF THE API IS WORKING FINE OR NOT
       app.get('/', (req, res) => {
          res.send('Serever is running....')
       })
 
-      // 02. USER RELATED API => CREATE A NEW USER
+      // 04. USER RELATED API => CREATE A NEW USER
       app.post('/users', validateExistingUsre, async (req, res) => {
          // when the user is an existing user, return early with response to client
          if (req.body.isExistingUser) {
@@ -249,7 +262,7 @@ async function run() {
          res.send(result);
       });
 
-      // USER RELATED API => UPDATE AN EXISTING USER
+      // 05. USER RELATED API => UPDATE AN EXISTING USER
       app.patch('/users', validateExistingUsre, async (req, res) => {
          // when the user is an existing user
          if (req.body.isExistingUser) {
@@ -275,7 +288,7 @@ async function run() {
          }
       })
 
-      // USER RELATED API => UPDATE A SINGLE USER
+      // 06. USER RELATED API => UPDATE A SINGLE USER
       app.patch('/users/update/:id', isAdmin, async (req, res) => {
          const id = req.params.id;
          const filter = {};
@@ -299,7 +312,7 @@ async function run() {
 
       });
 
-      // 03. USER RELATED API => RETRIVE USERS
+      // 07. USER RELATED API => RETRIVE USERS
       app.get('/users', async (req, res) => {
          const filter = {};
 
@@ -317,7 +330,7 @@ async function run() {
          res.send(result);
       })
 
-      // 04. USER RELATED API => RETRIVE A PARTICULAR USER USING ID
+      // 08. USER RELATED API => RETRIVE A PARTICULAR USER USING ID
       app.get('/users/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
@@ -325,7 +338,7 @@ async function run() {
          res.send(result);
       })
 
-      // DONATION REQUEST RELATED API => CREATE A DONATION REQUEST
+      // 09. DONATION REQUEST RELATED API => CREATE A DONATION REQUEST
       app.post('/donation-requests', async (req, res) => {
          const donationRequest = req.body.donationRequest;
          donationRequest.createdAt = new Date();
@@ -333,7 +346,7 @@ async function run() {
          res.send(result);
       });
 
-      // DONATION REQUEST RELATED API => RETRIVE A SINGLE DONATION REQUEST DATA
+      // 10. DONATION REQUEST RELATED API => RETRIVE A SINGLE DONATION REQUEST DATA
       app.get('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
@@ -341,7 +354,7 @@ async function run() {
          res.send(result);
       })
 
-      // DONATION REQUEST RELATED API => RETRIVE DONATION REQUESTS
+      // 11. DONATION REQUEST RELATED API => RETRIVE DONATION REQUESTS
       app.get('/donation-requests', async (req, res) => {
          const filter = {};
          let count = 0;
@@ -392,7 +405,7 @@ async function run() {
          res.send(result);
       })
 
-      // DONATION REQUEST RELATED API: UPDATE A SINGLE DONATION REQUEST
+      // 12. DONATION REQUEST RELATED API: UPDATE A SINGLE DONATION REQUEST
       app.patch('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
@@ -420,7 +433,7 @@ async function run() {
          res.send(result);
       })
 
-      // DONATION REQUEST RELATED API: DELETE A DONATION REQUEST
+      // 13. DONATION REQUEST RELATED API: DELETE A DONATION REQUEST
       app.delete('/donation-requests/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
@@ -429,7 +442,7 @@ async function run() {
          res.send(result);
       });
 
-      // BLOGS RELATED API: RETRIVE ALL BLOGS
+      // 14. BLOGS RELATED API: RETRIVE ALL BLOGS
       app.get('/blogs', async (req, res) => {
          const filter = {};
 
@@ -442,7 +455,7 @@ async function run() {
          res.send(result);
       });
 
-      // BLOGS RELATED API: RETRIVE A SINGLE BLOG USING BLOG ID
+      // 15. BLOGS RELATED API: RETRIVE A SINGLE BLOG USING BLOG ID
       app.get('/blogs/:id', async (req, res) => {
          const id = req.params.id;
          const filter = {
@@ -453,7 +466,7 @@ async function run() {
          res.send(result);
       })
 
-      // BLOGS RELATED API: CREATE AND SAVE A BLOG
+      // 16. BLOGS RELATED API: CREATE AND SAVE A BLOG
       app.post('/blogs', async (req, res) => {
          const newBlog = req.body.blog;
          newBlog.createdAt = new Date();
@@ -461,7 +474,7 @@ async function run() {
          res.send(result);
       });
 
-      // BLOGS RELATED API: UPDATE A SINGLE BLOG
+      // 17. BLOGS RELATED API: UPDATE A SINGLE BLOG
       app.patch('/blogs/:id', async (req, res) => {
          const id = req.params.id;
          const filter = {
@@ -480,7 +493,7 @@ async function run() {
          res.send(result);
       })
 
-      // BLOGS RELATED API: DELETE A SINGLE BLOG USING THE BLOG ID
+      // 18. BLOGS RELATED API: DELETE A SINGLE BLOG USING THE BLOG ID
       app.delete('/blogs/:id', async (req, res) => {
          const id = req.params.id;
          const filter = {
@@ -491,7 +504,7 @@ async function run() {
          res.send(result);
       });
 
-      // ADMIN STATISTICS RELATED API:
+      // 19. ADMIN STATISTICS RELATED API:
       app.get('/admin/statistics', async (req, res) => {
          // user related data;
          const userCount = await userCollection.estimatedDocumentCount();
@@ -506,7 +519,7 @@ async function run() {
          const donationGrowth = await calculateGrowthPercentage(donationRequestCollection, 'createdAt')
          const bloodDonationRequests = {
             count: bloodDonationRequestsCount,
-            growth: donationGrowth.toFixed(1)
+            growth: donationGrowth.toFixed(1) + '%'
          }
 
          // funds related data;
@@ -518,13 +531,13 @@ async function run() {
          res.send(result);
       })
 
-      // 05. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
+      // 20. DISTRICTS RELATED API: RETRIVE ALL THE DISCTRICTS;
       app.get('/districts', async (req, res) => {
          const result = await districtsCollection.find().toArray();
          res.send(result);
       });
 
-      // 06. DISTRICTS RELATED API: RETRIVE A SINGLE DISCTICT
+      // 21. DISTRICTS RELATED API: RETRIVE A SINGLE DISCTICT
       app.get('/districts/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { name: 'districts' };
@@ -534,13 +547,13 @@ async function run() {
          res.send(finalData);
       });
 
-      // 07. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS
+      // 22. UPAZILAS RELATED API: RETRIVE ALL THE UPAZILAS
       app.get('/upazilas', async (req, res) => {
          const result = await upazilaCollection.find().toArray();
          res.send(result);
       });
 
-      // UPAZILAS RELATED API: RETRIVE A SINGLE UPAZILA DATA
+      // 23. UPAZILAS RELATED API: RETRIVE A SINGLE UPAZILA DATA
       app.get('/upazilas/:id', async (req, res) => {
          const id = req.params.id;
          const filter = { name: 'upazilas' };

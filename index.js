@@ -9,6 +9,14 @@ const cookieParser = require('cookie-parser');
 const app = express();
 const port = process.env.PORT || 5000;
 
+// APPLICATION LEVEL MIDDLEWARES:
+app.use(cors({
+   origin: ['http://localhost:5173', 'https://one-drop.netlify.app'],
+   credentials: true
+}));
+app.use(express.json());
+app.use(cookieParser());
+
 // CUSTOM MIDDLEWARES: validateExistingUser
 const validateExistingUsre = async (req, res, next) => {
    // 01. get the user email from the request body
@@ -53,6 +61,69 @@ const isAdmin = async (req, res, next) => {
 
    // update the filter with user email and find the user;
    filter.email = userEmail;
+
+   try {
+      const user = await userCollection.findOne(filter);
+
+      // when the user does not exist
+      if (!user) {
+         return res.status(401).send({
+            success: false,
+            message: "Unauthorized access",
+         });
+      };
+
+      // when the role of the user is not admin
+      if (user.role !== 'admin') {
+         return res.status(401).send({
+            success: false,
+            message: 'Unauthorized Access',
+            statusCode: 401
+         })
+      }
+
+      // finally call the next function
+      next();
+   } catch (error) {
+      return res.status(500).json({ success: false, message: 'Something went wrong!!' });
+   }
+
+};
+
+// CUSTOM MIDDLEWARES: verifyUser
+const verifyToken = async (req, res, next) => {
+   const { verification_token } = req.cookies;
+
+   if (!verification_token) return res.json({ message: 'cookies not found' })
+
+   try {
+      const decoded = jwt.verify(verification_token, process.env.JWT_SECRET);
+      if (!decoded) return res.status(403).json({ success: false, message: 'Porbiden Access' });
+      req.decoded = decoded;
+      next();
+   } catch (error) {
+      return res.status(401).json({ success: false, message: 'Unauthorized access!!', error })
+   }
+};
+
+// CUSTOM MIDDLEWARE: VERIFY THE USER ROLE [THIS MIDDLWARE SHALL BE CALLED AFTER THE 'verifyToken' MIDDLEWARE]
+const verifyUserRole = async (req, res, next) => {
+   const filter = {};
+
+   // get the user email from the request body
+   const userEmail = req.decoded.email;
+
+   // when the user email is not provided
+   if (!userEmail) {
+      return res.status(401).send({
+         success: false,
+         message: "User's email is missing. Please provide the user's email",
+         statusCode: 401
+      });
+   };
+
+   // update the filter with user email and find the user;
+   filter.email = userEmail;
    const user = await userCollection.findOne(filter);
 
    // when the user does not exist
@@ -63,43 +134,15 @@ const isAdmin = async (req, res, next) => {
       });
    };
 
-   // when the role of the user is not admin
-   if (user.role !== 'admin') {
-      return res.status(401).send({
-         success: false,
-         message: 'Unauthorized Access',
-         statusCode: 401
-      })
+   req.userRole = {
+      isAdmin: user.role === 'admin',
+      isDonor: user.role === 'donor',
+      isVolunteer: user.role === 'volunteer'
    }
 
    // finally call the next function
    next();
-
-};
-
-// CUSTOM MIDDLEWARES: verifyUser
-const verifyToken = async (req, res, next) => {
-   const { verification_token } = req.cookies;
-
-   try {
-      const decoded = jwt.verify(verification_token, process.env.JWT_SECRET);
-      if (!decoded) return res.json({ success: false, message: 'Porbiden Access' });
-
-      req.decoded = decoded;
-   } catch (error) {
-      return res.json({ success: false, message: 'Unauthorized access!!', error })
-   }
-
-   next();
-};
-
-// APPLICATION LEVEL MIDDLEWARES:
-app.use(cors({
-   origin: ['http://localhost:5173', 'https://one-drop.netlify.app'],
-   credentials: true
-}));
-app.use(express.json());
-app.use(cookieParser());
+}
 
 // MONGODB URI
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.fev0e.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -168,17 +211,18 @@ async function run() {
 
             res.cookie('verification_token', token, {
                httpOnly: true,
-               secure: process.env.NODE_ENV === 'production',
+               secure: process.env.NODE_ENV === "production",
+               sameSite: 'none'
             });
 
-            return res.json({ 
-               success: true, 
-               varification_token: token, 
-               user, 
-               message: 'verification token has been created successfully' 
+            return res.json({
+               success: true,
+               varification_token: token,
+               user,
+               message: 'verification token has been created successfully'
             });
          } catch (error) {
-            return res.json({success: false, message: 'Something went wrong and could not generate the token', error});
+            return res.json({ success: false, message: 'Something went wrong and could not generate the token', error });
          }
       });
 
@@ -281,10 +325,14 @@ async function run() {
                }
             }
 
-            const result = await userCollection.updateOne(filter, updatedDoc, options);
-            res.send(result);
+            try {
+               const result = await userCollection.updateOne(filter, updatedDoc, options);
+               res.send(result);
+            } catch (error) {
+               return res.send({ success: false, message: 'Something went wrong' })
+            }
          } else {
-            res.send({ success: false, message: 'Something went wrong' })
+            res.send({ success: false, message: 'Unable to make update as the user does not exist' });
          }
       })
 
@@ -339,7 +387,7 @@ async function run() {
       })
 
       // 09. DONATION REQUEST RELATED API => CREATE A DONATION REQUEST
-      app.post('/donation-requests', async (req, res) => {
+      app.post('/donation-requests', verifyToken, async (req, res) => {
          const donationRequest = req.body.donationRequest;
          donationRequest.createdAt = new Date();
          const result = await donationRequestCollection.insertOne(donationRequest);
@@ -347,7 +395,7 @@ async function run() {
       });
 
       // 10. DONATION REQUEST RELATED API => RETRIVE A SINGLE DONATION REQUEST DATA
-      app.get('/donation-requests/:id', async (req, res) => {
+      app.get('/donation-requests/:id', verifyToken, async (req, res) => {
          const id = req.params.id;
          const filter = { _id: new ObjectId(id) };
          const result = await donationRequestCollection.findOne(filter);
@@ -355,7 +403,8 @@ async function run() {
       })
 
       // 11. DONATION REQUEST RELATED API => RETRIVE DONATION REQUESTS
-      app.get('/donation-requests', async (req, res) => {
+      app.get('/donation-requests', verifyToken, async (req, res) => {
+
          const filter = {};
          let count = 0;
          const sortingOption = { createdAt: -1 }
@@ -402,7 +451,12 @@ async function run() {
          }
 
          const result = await donationRequestCollection.find(filter).sort(sortingOption).limit(count).toArray();
-         res.send(result);
+         res.json({
+            data: result,
+            success: true,
+            message: 'Data is returned successfully',
+            decoded: req.decoded || {}
+         });
       })
 
       // 12. DONATION REQUEST RELATED API: UPDATE A SINGLE DONATION REQUEST

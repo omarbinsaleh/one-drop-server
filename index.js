@@ -510,7 +510,7 @@ async function run() {
       });
 
       // 15. BLOGS RELATED API: RETRIVE A SINGLE BLOG USING BLOG ID
-      app.get('/blogs/:id', async (req, res) => {
+      app.get('/blogs/:id', verifyToken, async (req, res) => {
          const id = req.params.id;
          const filter = {
             _id: new ObjectId(id)
@@ -521,7 +521,7 @@ async function run() {
       })
 
       // 16. BLOGS RELATED API: CREATE AND SAVE A BLOG
-      app.post('/blogs', async (req, res) => {
+      app.post('/blogs', verifyToken, async (req, res) => {
          const newBlog = req.body.blog;
          newBlog.createdAt = new Date();
          const result = await blogsCollection.insertOne(newBlog);
@@ -529,11 +529,25 @@ async function run() {
       });
 
       // 17. BLOGS RELATED API: UPDATE A SINGLE BLOG
-      app.patch('/blogs/:id', async (req, res) => {
+      app.patch('/blogs/:id', verifyToken, verifyUserRole, async (req, res) => {
          const id = req.params.id;
          const filter = {
             _id: new ObjectId(id)
          };
+
+         const isDonor = req.userRole.isDonor;
+
+         // allow donor to do actions upon his or her blogs only [NOT OTHERS BLOGS]
+         // check if both the current user and the blog author are the same persons
+         if (isDonor) {
+            const userEmail = req.decoded.email;
+            const blog = await blogsCollection.findOne(filter);
+            const blogAuthorEmail = blog.author.email;
+
+            if (userEmail !== blogAuthorEmail) {
+               return res.status(401).json({ success: false, message: 'Unauthorized access' });
+            }
+         }
 
          const options = { upsert: true };
          const updatedDoc = {
@@ -548,10 +562,23 @@ async function run() {
       })
 
       // 18. BLOGS RELATED API: DELETE A SINGLE BLOG USING THE BLOG ID
-      app.delete('/blogs/:id', async (req, res) => {
+      app.delete('/blogs/:id', verifyToken, verifyUserRole, async (req, res) => {
          const id = req.params.id;
          const filter = {
             _id: new ObjectId(id)
+         }
+
+         const isDonor = req.userRole.isDonor;
+
+         // allow donor to delete his or her blogs only [NOT OTHERS BLOGS]
+         if (isDonor) {
+            const userEmail = req.decoded.email;
+            const blog = await blogsCollection.findOne(filter);
+            const blogAuthorEmail = blog.author.email;
+
+            if (userEmail !== blogAuthorEmail) {
+               return res.status(401).json({ success: false, message: 'Unauthorized accesss'})
+            }
          }
 
          const result = await blogsCollection.deleteOne(filter);
